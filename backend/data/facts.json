@@ -1,0 +1,24 @@
+{
+    "full_name": "Lakshman Yeluri",
+    "name": "Lakshman",
+    "current_role": "Senior Technical Program Manager",
+    "location": "Hyderabad, India",
+    "email": "lakshmaneluri@gmail.com",
+    "linkedin": "https://www.linkedin.com/in/lakshmanyeluri/",
+    "specialties": [
+      "Data Annotation Platforms",
+      "Stack Management",
+      "AWS",
+      "Microservices",
+      "Ambiguous Requirements Handling",
+      "Cross-functional Collaboration across Engineering, operations and Product teams"
+    ],
+    "years_experience": 15,
+    "education": [
+      {
+        "degree": "MBA and B.Tech in Electronics and Communication Engineering",
+        "institution": "JNTU Hyderabad",
+        "year": "2020"
+      }
+    ]
+  }
