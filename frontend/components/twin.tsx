@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User, RotateCcw } from 'lucide-react';
+import { Send, Bot, User, RotateCcw, Copy, Check } from 'lucide-react';
 import MessageContent from '@/components/message-content';
 import { profile } from '@/lib/profile';
 
@@ -99,6 +99,18 @@ export default function Twin() {
         }
     };
 
+    const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+
+    const copyMessage = async (messageId: string, content: string) => {
+        try {
+            await navigator.clipboard.writeText(content);
+            setCopiedMessageId(messageId);
+            setTimeout(() => setCopiedMessageId(null), 2000);
+        } catch (error) {
+            console.error('Failed to copy message:', error);
+        }
+    };
+
     const startNewConversation = () => {
         setMessages([]);
         setSessionId('');
@@ -154,7 +166,7 @@ export default function Twin() {
                         type="button"
                         onClick={startNewConversation}
                         disabled={isLoading}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-900 disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-900 disabled:opacity-50 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-700 dark:hover:bg-gray-700 dark:hover:text-blue-300"
                     >
                         <RotateCcw className="h-3.5 w-3.5" />
                         New conversation
@@ -167,14 +179,14 @@ export default function Twin() {
                     {messages.length === 0 && (
                         <div className="animate-fade-in-up flex flex-col items-center px-4 pt-6 pb-4 text-center md:pt-10">
                             {renderAvatar('lg')}
-                            <h2 className="text-xl font-bold text-gray-900 md:text-2xl">
+                            <h2 className="text-xl font-bold text-gray-900 dark:text-white md:text-2xl">
                                 {profile.name}
                             </h2>
-                            <p className="mt-1 text-sm font-medium text-blue-800 md:text-base">
+                            <p className="mt-1 text-sm font-medium text-blue-800 dark:text-blue-300 md:text-base">
                                 {profile.title} · {profile.company}
                             </p>
-                            <p className="mt-1 text-xs text-gray-500">{profile.location}</p>
-                            <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-600 md:text-base">
+                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{profile.location}</p>
+                            <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-300 md:text-base">
                                 Hello! You are in Lakshman Yeluri&apos;s Digital World.
                                 <br />
                                 {profile.tagline}
@@ -186,7 +198,7 @@ export default function Twin() {
                                         type="button"
                                         onClick={() => sendMessage(question)}
                                         disabled={isLoading}
-                                        className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm text-blue-900 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow disabled:opacity-50"
+                                        className="rounded-full border border-blue-200 bg-white px-4 py-2 text-sm text-blue-900 shadow-sm transition-all hover:border-blue-300 hover:bg-blue-50 hover:shadow disabled:opacity-50 dark:border-blue-800 dark:bg-gray-800 dark:text-blue-200 dark:hover:bg-gray-700"
                                     >
                                         {question}
                                     </button>
@@ -202,7 +214,7 @@ export default function Twin() {
                                     key={message.id}
                                     className="animate-fade-in-up flex gap-3 justify-end"
                                 >
-                                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-900 p-4 text-white shadow-md md:max-w-[75%]">
+                                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-900 p-4 text-white shadow-md md:max-w-[75%] dark:bg-blue-800">
                                         <p className="whitespace-pre-wrap leading-relaxed">
                                             {message.content}
                                         </p>
@@ -231,16 +243,36 @@ export default function Twin() {
                             >
                                 <div className="flex-shrink-0 pt-1">{renderAvatar('sm')}</div>
                                 <div className="flex max-w-[85%] flex-col gap-2 md:max-w-[75%]">
-                                    <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 text-gray-800 shadow-sm">
+                                    <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                                         <MessageContent content={message.content} />
-                                        <p className="mt-2 text-xs text-gray-400">
-                                            {message.timestamp.toLocaleTimeString()}
-                                        </p>
+                                        <div className="mt-2 flex items-center justify-between gap-2">
+                                            <p className="text-xs text-gray-400 dark:text-gray-500">
+                                                {message.timestamp.toLocaleTimeString()}
+                                            </p>
+                                            <button
+                                                type="button"
+                                                onClick={() => copyMessage(message.id, message.content)}
+                                                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-700 dark:hover:text-gray-200"
+                                                aria-label="Copy response"
+                                            >
+                                                {copiedMessageId === message.id ? (
+                                                    <>
+                                                        <Check className="h-3.5 w-3.5" />
+                                                        Copied
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Copy className="h-3.5 w-3.5" />
+                                                        Copy
+                                                    </>
+                                                )}
+                                            </button>
+                                        </div>
                                     </div>
 
                                     {showSuggestions && (
                                         <div className="flex flex-col gap-2 pl-1">
-                                            <p className="text-xs font-medium text-gray-500">
+                                            <p className="text-xs font-medium text-gray-500 dark:text-gray-400">
                                                 Suggested follow-up questions
                                             </p>
                                             <div className="flex flex-wrap gap-2">
@@ -250,7 +282,7 @@ export default function Twin() {
                                                         type="button"
                                                         onClick={() => sendMessage(question)}
                                                         disabled={isLoading}
-                                                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm text-blue-900 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:opacity-50"
+                                                        className="rounded-full border border-blue-200 bg-blue-50 px-3 py-2 text-left text-sm text-blue-900 transition-colors hover:border-blue-300 hover:bg-blue-100 disabled:opacity-50 dark:border-blue-800 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900"
                                                     >
                                                         {question}
                                                     </button>
@@ -270,8 +302,8 @@ export default function Twin() {
                                     {renderAvatar('sm')}
                                 </div>
                             </div>
-                            <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 shadow-sm">
-                                <p className="mb-2 text-sm font-medium text-gray-500">
+                            <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
+                                <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
                                     Lakshman is typing...
                                 </p>
                                 <div className="flex space-x-2">
@@ -289,10 +321,10 @@ export default function Twin() {
 
             <div className="shrink-0 px-3 pb-4 pt-2 md:px-6 md:pb-6">
                 <div className="mx-auto max-w-3xl">
-                    <p className="mb-2 text-center text-xs text-gray-400">
+                    <p className="mb-2 text-center text-xs text-gray-400 dark:text-gray-500">
                         Press Enter to send
                     </p>
-                    <div className="relative flex items-center rounded-full border border-gray-200 bg-white shadow-lg">
+                    <div className="relative flex items-center rounded-full border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
                         <input
                             ref={inputRef}
                             type="text"
@@ -300,14 +332,14 @@ export default function Twin() {
                             onChange={(e) => setInput(e.target.value)}
                             onKeyDown={handleKeyPress}
                             placeholder="Ask about Lakshman's experience..."
-                            className="w-full rounded-full bg-transparent py-3.5 pl-5 pr-14 text-gray-800 focus:outline-none disabled:opacity-50"
+                            className="w-full rounded-full bg-transparent py-3.5 pl-5 pr-14 text-gray-800 focus:outline-none disabled:opacity-50 dark:text-gray-100 dark:placeholder:text-gray-500"
                             disabled={isLoading}
                             autoFocus
                         />
                         <button
                             onClick={() => sendMessage()}
                             disabled={!input.trim() || isLoading}
-                            className="absolute right-2 rounded-full bg-blue-900 p-2.5 text-white transition-colors hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-50"
+                            className="absolute right-2 rounded-full bg-blue-900 p-2.5 text-white transition-colors hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-700 dark:hover:bg-blue-600"
                             aria-label="Send message"
                         >
                             <Send className="h-4 w-4" />
