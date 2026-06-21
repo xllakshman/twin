@@ -37,3 +37,8 @@
 .delay-200 {
   animation-delay: 0.2s;
 }
+
+.page-texture {
+  background-image: radial-gradient(circle, rgb(148 163 184 / 0.12) 1px, transparent 1px);
+  background-size: 24px 24px;
+}

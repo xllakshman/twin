@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Send, Bot, User } from 'lucide-react';
+import { Send, Bot, User, RotateCcw } from 'lucide-react';
 import MessageContent from '@/components/message-content';
 import { profile } from '@/lib/profile';
 
@@ -99,6 +99,13 @@ export default function Twin() {
         }
     };
 
+    const startNewConversation = () => {
+        setMessages([]);
+        setSessionId('');
+        setInput('');
+        inputRef.current?.focus();
+    };
+
     const [hasAvatar, setHasAvatar] = useState(false);
     useEffect(() => {
         fetch('/avatar.jpg', { method: 'HEAD' })
@@ -141,6 +148,20 @@ export default function Twin() {
 
     return (
         <div className="flex h-full w-full flex-col">
+            {messages.length > 0 && (
+                <div className="flex shrink-0 justify-end px-3 pt-2 md:px-6">
+                    <button
+                        type="button"
+                        onClick={startNewConversation}
+                        disabled={isLoading}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-900 disabled:opacity-50"
+                    >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        New conversation
+                    </button>
+                </div>
+            )}
+
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
                 <div className="mx-auto max-w-3xl space-y-4">
                     {messages.length === 0 && (
@@ -244,8 +265,15 @@ export default function Twin() {
 
                     {isLoading && (
                         <div className="animate-fade-in-up flex gap-3 justify-start">
-                            <div className="flex-shrink-0 pt-1">{renderAvatar('sm')}</div>
+                            <div className="flex-shrink-0 pt-1">
+                                <div className={hasAvatar ? 'animate-pulse' : ''}>
+                                    {renderAvatar('sm')}
+                                </div>
+                            </div>
                             <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 shadow-sm">
+                                <p className="mb-2 text-sm font-medium text-gray-500">
+                                    Lakshman is typing...
+                                </p>
                                 <div className="flex space-x-2">
                                     <div className="h-2 w-2 animate-bounce rounded-full bg-blue-400" />
                                     <div className="h-2 w-2 animate-bounce rounded-full bg-blue-400 delay-100" />
@@ -259,26 +287,32 @@ export default function Twin() {
                 </div>
             </div>
 
-            <div className="shrink-0 border-t border-gray-200/80 bg-white/90 p-3 backdrop-blur-sm md:p-4">
-                <div className="mx-auto flex max-w-3xl gap-2">
-                    <input
-                        ref={inputRef}
-                        type="text"
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        placeholder="Type your message..."
-                        className="flex-1 rounded-xl border border-gray-200 px-4 py-3 text-gray-800 shadow-sm focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-100"
-                        disabled={isLoading}
-                        autoFocus
-                    />
-                    <button
-                        onClick={() => sendMessage()}
-                        disabled={!input.trim() || isLoading}
-                        className="rounded-xl bg-blue-900 px-4 py-3 text-white shadow-sm transition-colors hover:bg-blue-950 focus:outline-none focus:ring-2 focus:ring-blue-200 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                        <Send className="h-5 w-5" />
-                    </button>
+            <div className="shrink-0 px-3 pb-4 pt-2 md:px-6 md:pb-6">
+                <div className="mx-auto max-w-3xl">
+                    <p className="mb-2 text-center text-xs text-gray-400">
+                        Press Enter to send
+                    </p>
+                    <div className="relative flex items-center rounded-full border border-gray-200 bg-white shadow-lg">
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={handleKeyPress}
+                            placeholder="Ask about Lakshman's experience..."
+                            className="w-full rounded-full bg-transparent py-3.5 pl-5 pr-14 text-gray-800 focus:outline-none disabled:opacity-50"
+                            disabled={isLoading}
+                            autoFocus
+                        />
+                        <button
+                            onClick={() => sendMessage()}
+                            disabled={!input.trim() || isLoading}
+                            className="absolute right-2 rounded-full bg-blue-900 p-2.5 text-white transition-colors hover:bg-blue-950 disabled:cursor-not-allowed disabled:opacity-50"
+                            aria-label="Send message"
+                        >
+                            <Send className="h-4 w-4" />
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>
