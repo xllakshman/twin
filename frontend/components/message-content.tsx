@@ -1,78 +1,110 @@
 'use client';
 
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import type { Element } from 'hast';
-
-function isStandaloneStrongParagraph(node: Element | undefined): boolean {
-  if (!node || node.tagName !== 'p') return false;
-  const children = node.children ?? [];
-  if (children.length !== 1) return false;
-  const child = children[0];
-  return child.type === 'element' && child.tagName === 'strong';
-}
-
-function getStrongText(node: Element | undefined): string {
-  if (!node || node.tagName !== 'p') return '';
-  const child = node.children?.[0];
-  if (child?.type !== 'element' || child.tagName !== 'strong') return '';
-  const textNode = child.children?.[0];
-  return textNode?.type === 'text' ? textNode.value : '';
-}
+import { Fragment } from 'react';
 
 interface MessageContentProps {
   content: string;
 }
 
+function stripBoldMarkers(text: string): string {
+  return text.replace(/\*\*/g, '').trim();
+}
+
+function renderInline(text: string, boldClass = 'font-bold text-black') {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+
+  return parts.map((part, index) => {
+    const match = part.match(/^\*\*(.+)\*\*$/);
+    if (match) {
+      return (
+        <strong key={index} className={boldClass}>
+          {match[1]}
+        </strong>
+      );
+    }
+    return part ? <Fragment key={index}>{part}</Fragment> : null;
+  });
+}
+
 export default function MessageContent({ content }: MessageContentProps) {
+  const lines = content.split('\n');
+
   return (
-    <ReactMarkdown
-      remarkPlugins={[remarkGfm]}
-      components={{
-        h1: ({ children }) => (
-          <h2 className="text-xl font-bold text-blue-700 mt-4 mb-2 first:mt-0">{children}</h2>
-        ),
-        h2: ({ children }) => (
-          <h2 className="text-lg font-bold text-blue-700 mt-4 mb-2 first:mt-0">{children}</h2>
-        ),
-        h3: ({ children }) => (
-          <h3 className="text-base font-bold text-black mt-3 mb-1">{children}</h3>
-        ),
-        p: ({ node, children }) => {
-          if (isStandaloneStrongParagraph(node as Element | undefined)) {
-            const text = getStrongText(node as Element | undefined);
-            const isSectionHeading = text.endsWith(':');
+    <div className="space-y-1">
+      {lines.map((rawLine, index) => {
+        const line = rawLine.trim();
+        if (!line) return null;
 
-            if (isSectionHeading) {
-              return (
-                <p className="text-lg font-bold text-blue-700 mt-4 mb-2 first:mt-0">{children}</p>
-              );
-            }
+        const sectionHeading = line.match(/^\*\*(.+?):\*\*\s*$/);
+        if (sectionHeading) {
+          return (
+            <p
+              key={index}
+              className="text-lg font-bold text-blue-700 mt-4 mb-2 first:mt-0"
+            >
+              {sectionHeading[1]}:
+            </p>
+          );
+        }
 
-            return (
-              <p className="text-base font-bold text-black mt-3 mb-1">{children}</p>
-            );
-          }
+        const subHeading = line.match(/^\*\*(.+?)\*\*\s*$/);
+        if (subHeading) {
+          return (
+            <p key={index} className="text-base font-bold text-black mt-3 mb-1">
+              {subHeading[1]}
+            </p>
+          );
+        }
 
-          return <p className="mb-2 leading-relaxed">{children}</p>;
-        },
-        strong: ({ children }) => (
-          <strong className="font-bold text-black">{children}</strong>
-        ),
-        ul: ({ children }) => (
-          <ul className="list-disc pl-5 mb-2 space-y-1">{children}</ul>
-        ),
-        ol: ({ children }) => (
-          <ol className="list-decimal pl-5 mb-2 space-y-1">{children}</ol>
-        ),
-        li: ({ children }) => (
-          <li className="text-sm leading-relaxed [&>strong:first-child]:text-sm [&>strong:first-child]:font-bold [&>strong:first-child]:text-black">
-            {children}
-          </li>
-        ),
-      }}
-    >
-      {content}
-    </ReactMarkdown>
+        const markdownSection = line.match(/^#{1,2}\s+(.+)$/);
+        if (markdownSection) {
+          return (
+            <p
+              key={index}
+              className="text-lg font-bold text-blue-700 mt-4 mb-2 first:mt-0"
+            >
+              {stripBoldMarkers(markdownSection[1])}
+            </p>
+          );
+        }
+
+        const markdownSub = line.match(/^#{3,6}\s+(.+)$/);
+        if (markdownSub) {
+          return (
+            <p key={index} className="text-base font-bold text-black mt-3 mb-1">
+              {stripBoldMarkers(markdownSub[1])}
+            </p>
+          );
+        }
+
+        const bullet = line.match(/^[-*•]\s+(.+)$/);
+        if (bullet) {
+          const bulletText = bullet[1];
+          const labelMatch = bulletText.match(/^\*\*(.+?):\*\*\s*(.*)$/);
+
+          return (
+            <div key={index} className="flex gap-2 text-sm leading-relaxed pl-1">
+              <span className="text-gray-500 shrink-0">•</span>
+              <p>
+                {labelMatch ? (
+                  <>
+                    <strong className="font-bold text-black">{labelMatch[1]}:</strong>
+                    {labelMatch[2] ? ` ${renderInline(labelMatch[2])}` : null}
+                  </>
+                ) : (
+                  renderInline(bulletText)
+                )}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <p key={index} className="mb-1 leading-relaxed">
+            {renderInline(line)}
+          </p>
+        );
+      })}
+    </div>
   );
 }
