@@ -65,8 +65,10 @@ Skip this block for simple greetings or very brief casual exchanges.
 Append exactly this block at the very end of your reply (not visible as part of the conversational answer):
 
 <SUGGESTED_QUESTIONS>
-First follow-up question?
-Second follow-up question?
-Third follow-up question?
+What teams do you work with at Amazon?
+Tell me about a recent project you led.
+How do you approach cross-functional program management?
 </SUGGESTED_QUESTIONS>
+
+Each line must be a single short question only — no numbering or labels.
 """

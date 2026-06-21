@@ -118,11 +118,13 @@ def extract_suggested_questions(text: str) -> Tuple[str, List[str]]:
         return text.strip(), []
 
     clean_response = SUGGESTIONS_PATTERN.sub("", text).strip()
-    questions = [
-        line.strip().lstrip("-•").strip()
-        for line in match.group(1).splitlines()
-        if line.strip()
-    ]
+    questions = []
+    for line in match.group(1).splitlines():
+        line = line.strip().lstrip("-•").strip()
+        line = re.sub(r"^(?:first|second|third)\s+follow-up\s+question:\s*", "", line, flags=re.IGNORECASE)
+        line = re.sub(r"^\d+[.)]\s*", "", line)
+        if line:
+            questions.append(line)
     return clean_response, questions[:3]
 
 
