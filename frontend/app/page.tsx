@@ -2,20 +2,18 @@ import Twin from '@/components/twin';
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-50 to-gray-100">
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-4xl font-bold text-center text-gray-800 mb-2">
-            Get to Know About Lakshman Yeluri
-          </h1>
-          <p className="text-center text-gray-600 mb-8">
-            Senior Technical Program Manager - Amazon
-          </p>
+    <main className="h-screen flex flex-col bg-gradient-to-br from-slate-50 to-gray-100 overflow-hidden">
+      <header className="shrink-0 px-4 pt-4 pb-3 text-center">
+        <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-1">
+          Get to Know About Lakshman Yeluri
+        </h1>
+        <p className="text-sm md:text-base text-gray-600">
+          Senior Technical Program Manager - Amazon
+        </p>
+      </header>
 
-          <div className="h-[600px]">
-            <Twin />
-          </div>
-        </div>
+      <div className="flex-1 min-h-0 px-3 pb-3 md:px-4 md:pb-4">
+        <Twin />
       </div>
     </main>
   );

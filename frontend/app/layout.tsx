@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Lakshman Digital Twin",
+  title: "Lakshman's Digital Avatar",
   description: "An AI Career Twin representing Lakshman Yeluri",
 };
 

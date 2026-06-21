@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
+import MessageContent from '@/components/message-content';
 
 interface Message {
     id: string;
@@ -103,9 +104,9 @@ export default function Twin() {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 rounded-lg shadow-lg">
+        <div className="flex flex-col h-full bg-gray-50 rounded-lg shadow-lg border border-gray-200">
             {/* Header */}
-            <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-4 rounded-t-lg">
+            <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-3 md:p-4 rounded-t-lg shrink-0">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                     <Bot className="w-6 h-6" />
                     Lakshman Digital Avatar
@@ -126,8 +127,8 @@ export default function Twin() {
                         ) : (
                             <Bot className="w-12 h-12 mx-auto mb-3 text-gray-400" />
                         )}
-                        <p>Hello! I&apos;m your Digital Twin.</p>
-                        <p className="text-sm mt-2">Ask me anything about AI deployment!</p>
+                        <p>Hello! You are in Lakshman Yeluri&apos;s Digital World</p>
+                        <p className="text-sm mt-2">Ask me anything about his professional Experience...</p>
                     </div>
                 )}
 
@@ -155,13 +156,17 @@ export default function Twin() {
                         )}
 
                         <div
-                            className={`max-w-[70%] rounded-lg p-3 ${
+                            className={`max-w-[85%] md:max-w-[75%] rounded-lg p-3 ${
                                 message.role === 'user'
                                     ? 'bg-slate-700 text-white'
                                     : 'bg-white border border-gray-200 text-gray-800'
                             }`}
                         >
-                            <p className="whitespace-pre-wrap">{message.content}</p>
+                            {message.role === 'assistant' ? (
+                                <MessageContent content={message.content} />
+                            ) : (
+                                <p className="whitespace-pre-wrap">{message.content}</p>
+                            )}
                             <p
                                 className={`text-xs mt-1 ${
                                     message.role === 'user' ? 'text-slate-300' : 'text-gray-500'
@@ -210,7 +215,7 @@ export default function Twin() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-gray-200 p-4 bg-white rounded-b-lg">
+            <div className="border-t border-gray-200 p-3 md:p-4 bg-white rounded-b-lg shrink-0">
                 <div className="flex gap-2">
                     <input
                         ref={inputRef}
