@@ -3,9 +3,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from typing import Optional, List, Dict
+from typing import Optional, List, Dict, Tuple
 import json
 import uuid
+import re
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
@@ -54,6 +55,7 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
     session_id: str
+    suggested_questions: List[str] = []
 
 
 class Message(BaseModel):
@@ -101,6 +103,27 @@ def save_conversation(session_id: str, messages: List[Dict]):
         file_path = os.path.join(MEMORY_DIR, get_memory_path(session_id))
         with open(file_path, "w") as f:
             json.dump(messages, f, indent=2)
+
+
+SUGGESTIONS_PATTERN = re.compile(
+    r"<SUGGESTED_QUESTIONS>\s*(.*?)\s*</SUGGESTED_QUESTIONS>",
+    re.DOTALL | re.IGNORECASE,
+)
+
+
+def extract_suggested_questions(text: str) -> Tuple[str, List[str]]:
+    """Strip the suggestions block from the reply and return clean text + questions."""
+    match = SUGGESTIONS_PATTERN.search(text)
+    if not match:
+        return text.strip(), []
+
+    clean_response = SUGGESTIONS_PATTERN.sub("", text).strip()
+    questions = [
+        line.strip().lstrip("-•").strip()
+        for line in match.group(1).splitlines()
+        if line.strip()
+    ]
+    return clean_response, questions[:3]
 
 
 def call_bedrock(conversation: List[Dict], user_message: str) -> str:
@@ -180,7 +203,8 @@ async def chat(request: ChatRequest):
         conversation = load_conversation(session_id)
 
         # Call Bedrock for response
-        assistant_response = call_bedrock(conversation, request.message)
+        raw_response = call_bedrock(conversation, request.message)
+        assistant_response, suggested_questions = extract_suggested_questions(raw_response)
 
         # Update conversation history
         conversation.append(
@@ -197,7 +221,11 @@ async def chat(request: ChatRequest):
         # Save conversation
         save_conversation(session_id, conversation)
 
-        return ChatResponse(response=assistant_response, session_id=session_id)
+        return ChatResponse(
+            response=assistant_response,
+            session_id=session_id,
+            suggested_questions=suggested_questions,
+        )
 
     except HTTPException:
         raise
