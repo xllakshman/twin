@@ -16,7 +16,7 @@ export default function HomeShell() {
 
   return (
     <div className="page-texture flex h-dvh w-full flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-slate-900">
-      <header className="shrink-0 border-b border-white/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
+      <header className="relative z-[60] shrink-0 border-b border-white/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <ProfileDrawer />

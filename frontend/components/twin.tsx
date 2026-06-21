@@ -160,18 +160,6 @@ export default function Twin() {
 
     return (
         <div className="flex h-full w-full flex-col">
-            <div className="sticky top-0 z-10 flex shrink-0 items-center justify-end border-b border-gray-200/80 bg-white/80 px-3 py-2 backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80 md:px-6">
-                <button
-                    type="button"
-                    onClick={startNewConversation}
-                    disabled={isLoading || messages.length === 0}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs font-medium text-gray-600 shadow-sm transition-colors hover:border-blue-200 hover:bg-blue-50 hover:text-blue-900 disabled:cursor-not-allowed disabled:opacity-40 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300 dark:hover:border-blue-700 dark:hover:bg-gray-700 dark:hover:text-blue-300"
-                >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    New conversation
-                </button>
-            </div>
-
             <div className="min-h-0 flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
                 <div className="mx-auto max-w-3xl space-y-4">
                     {messages.length === 0 && (
@@ -311,8 +299,19 @@ export default function Twin() {
             </div>
 
             <div className="shrink-0 px-3 pb-4 pt-2 md:px-6 md:pb-6">
-                <div className="mx-auto max-w-3xl">
-                    <p className="mb-2 text-center text-xs text-gray-400 dark:text-gray-500">
+                <div className="mx-auto max-w-3xl space-y-3">
+                    <div className="flex justify-center">
+                        <button
+                            type="button"
+                            onClick={startNewConversation}
+                            disabled={isLoading || messages.length === 0}
+                            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-300 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-900 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-100 hover:shadow-md disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900 dark:disabled:border-gray-700 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            New conversation
+                        </button>
+                    </div>
+                    <p className="text-center text-xs text-gray-400 dark:text-gray-500">
                         Press Enter to send
                     </p>
                     <div className="relative flex items-center rounded-full border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
