@@ -1,6 +1,5 @@
 @import 'tailwindcss';
 
-/* Smooth scrolling animation keyframe */
 @keyframes bounce {
   0%,
   80%,
@@ -12,8 +11,23 @@
   }
 }
 
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .animate-bounce {
   animation: bounce 1.4s infinite;
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.35s ease-out both;
 }
 
 .delay-100 {
