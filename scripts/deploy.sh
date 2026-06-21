@@ -52,6 +52,12 @@ echo "NEXT_PUBLIC_API_URL=$API_URL" > .env.production
 npm install
 npm run build
 aws s3 sync ./out "s3://$FRONTEND_BUCKET/" --delete
+find ./out -name "*.html" -print0 | while IFS= read -r -d '' html_file; do
+  rel_path="${html_file#./out/}"
+  aws s3 cp "$html_file" "s3://$FRONTEND_BUCKET/$rel_path" \
+    --cache-control "no-cache, no-store, must-revalidate" \
+    --content-type "text/html"
+done
 cd ..
 
 # 4. Final messages

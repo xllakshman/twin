@@ -104,9 +104,9 @@ export default function Twin() {
     }, []);
 
     return (
-        <div className="flex flex-col h-full bg-gray-50 rounded-lg shadow-lg border border-gray-200">
+        <div className="flex h-full w-full flex-col bg-gray-50">
             {/* Header */}
-            <div className="bg-gradient-to-r from-slate-700 to-slate-800 text-white p-3 md:p-4 rounded-t-lg shrink-0">
+            <div className="shrink-0 bg-gradient-to-r from-slate-700 to-slate-800 p-3 text-white md:p-4">
                 <h2 className="text-xl font-semibold flex items-center gap-2">
                     <Bot className="w-6 h-6" />
                     Lakshman Digital Avatar
@@ -115,7 +115,7 @@ export default function Twin() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4 space-y-4">
                 {messages.length === 0 && (
                     <div className="text-center text-gray-500 mt-8">
                         {hasAvatar ? (
@@ -215,7 +215,7 @@ export default function Twin() {
             </div>
 
             {/* Input */}
-            <div className="border-t border-gray-200 p-3 md:p-4 bg-white rounded-b-lg shrink-0">
+            <div className="shrink-0 border-t border-gray-200 bg-white p-3 md:p-4">
                 <div className="flex gap-2">
                     <input
                         ref={inputRef}
