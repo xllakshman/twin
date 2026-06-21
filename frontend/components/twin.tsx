@@ -178,17 +178,10 @@ export default function Twin() {
                 <div className="mx-auto max-w-3xl space-y-4">
                     {messages.length === 0 && (
                         <div className="animate-fade-in-up flex flex-col items-center px-4 pt-6 pb-4 text-center md:pt-10">
-                            {renderAvatar('lg')}
-                            <h2 className="text-xl font-bold text-gray-900 dark:text-white md:text-2xl">
-                                {profile.name}
-                            </h2>
-                            <p className="mt-1 text-sm font-medium text-blue-800 dark:text-blue-300 md:text-base">
-                                {profile.title} · {profile.company}
-                            </p>
-                            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{profile.location}</p>
-                            <p className="mt-4 max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-300 md:text-base">
+                            <p className="max-w-md text-lg font-medium text-gray-800 dark:text-gray-100 md:text-xl">
                                 Hello! You are in Lakshman Yeluri&apos;s Digital World.
-                                <br />
+                            </p>
+                            <p className="mt-3 max-w-md text-sm leading-relaxed text-gray-600 dark:text-gray-300 md:text-base">
                                 {profile.tagline}
                             </p>
                             <div className="mt-6 flex flex-wrap justify-center gap-2 max-w-lg">

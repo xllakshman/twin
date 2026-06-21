@@ -11,9 +11,4 @@ export const profile = {
     "What's your leadership style?",
     'What teams do you work with?',
   ],
-  highlights: [
-    'Senior TPM at Amazon AGI-DS',
-    'Cross-functional program leadership',
-    'GenAI & data annotation platforms',
-  ],
 };

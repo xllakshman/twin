@@ -44,3 +44,38 @@
   background-image: radial-gradient(circle, rgb(148 163 184 / 0.12) 1px, transparent 1px);
   background-size: 24px 24px;
 }
+
+.hamburger-icon {
+  position: relative;
+  display: flex;
+  height: 14px;
+  width: 18px;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.hamburger-line {
+  display: block;
+  height: 2px;
+  width: 100%;
+  border-radius: 9999px;
+  background-color: currentColor;
+  color: rgb(55 65 81);
+  transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.dark .hamburger-line {
+  color: rgb(209 213 219);
+}
+
+.hamburger-icon.is-open .hamburger-line:nth-child(1) {
+  transform: translateY(6px) rotate(45deg);
+}
+
+.hamburger-icon.is-open .hamburger-line:nth-child(2) {
+  opacity: 0;
+}
+
+.hamburger-icon.is-open .hamburger-line:nth-child(3) {
+  transform: translateY(-6px) rotate(-45deg);
+}

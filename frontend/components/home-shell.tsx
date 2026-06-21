@@ -2,7 +2,7 @@
 
 import { Moon, Sun } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import ProfilePanel from '@/components/profile-panel';
+import ProfileDrawer from '@/components/profile-drawer';
 import SiteFooter from '@/components/site-footer';
 import Twin from '@/components/twin';
 import { profile } from '@/lib/profile';
@@ -18,23 +18,19 @@ export default function HomeShell() {
     <div className="page-texture flex h-dvh w-full flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-slate-900">
       <header className="shrink-0 border-b border-white/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <img
-              src="/avatar.jpg"
-              alt={profile.name}
-              className="h-10 w-10 rounded-full object-cover ring-2 ring-blue-100 dark:ring-blue-900"
-            />
-            <div>
-              <h1 className="text-base font-bold text-gray-900 dark:text-white md:text-lg">
+          <div className="flex min-w-0 items-center gap-3">
+            <ProfileDrawer />
+            <div className="min-w-0">
+              <h1 className="truncate text-base font-bold text-gray-900 dark:text-white md:text-lg">
                 {profile.name}
               </h1>
-              <p className="text-xs text-gray-600 dark:text-gray-400 md:text-sm">
+              <p className="truncate text-xs text-gray-600 dark:text-gray-400 md:text-sm">
                 {profile.title} · {profile.company}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <p className="hidden text-xs text-gray-400 sm:block dark:text-gray-500">
               Digital Avatar
             </p>
@@ -50,12 +46,9 @@ export default function HomeShell() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        <ProfilePanel />
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <Twin />
-          <SiteFooter />
-        </div>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <Twin />
+        <SiteFooter />
       </div>
     </div>
   );
