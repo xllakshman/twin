@@ -198,11 +198,11 @@ export default function Twin() {
                                     key={message.id}
                                     className="animate-fade-in-up flex gap-3 justify-end"
                                 >
-                                    <div className="max-w-[85%] rounded-2xl rounded-br-md bg-blue-900 p-4 text-white shadow-md md:max-w-[75%] dark:bg-blue-800">
+                                    <div className="max-w-[85%] rounded-2xl rounded-br-md border border-blue-100 bg-blue-50 p-4 text-gray-800 shadow-sm md:max-w-[75%] dark:border-blue-900 dark:bg-blue-950/50 dark:text-gray-100">
                                         <p className="whitespace-pre-wrap leading-relaxed">
                                             {message.content}
                                         </p>
-                                        <p className="mt-2 text-xs text-blue-200">
+                                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
                                             {message.timestamp.toLocaleTimeString()}
                                         </p>
                                     </div>
