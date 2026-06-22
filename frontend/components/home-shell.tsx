@@ -17,17 +17,16 @@ export default function HomeShell() {
   return (
     <div className="page-texture flex h-dvh w-full flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-gray-950 dark:via-gray-900 dark:to-slate-900">
       <header className="relative z-[60] shrink-0 border-b border-white/60 bg-white/80 px-4 py-3 shadow-sm backdrop-blur-sm dark:border-gray-700 dark:bg-gray-900/80">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <ProfileDrawer />
-            <div className="min-w-0">
-              <h1 className="truncate text-base font-bold text-gray-900 dark:text-white md:text-lg">
-                {profile.name}
-              </h1>
-              <p className="truncate text-xs text-gray-600 dark:text-gray-400 md:text-sm">
-                {profile.title} · {profile.company}
-              </p>
-            </div>
+        <div className="mx-auto flex max-w-6xl items-center gap-3">
+          <ProfileDrawer />
+
+          <div className="min-w-0 flex-1 text-center md:text-left">
+            <h1 className="truncate text-base font-bold text-gray-900 dark:text-white md:text-lg">
+              {profile.name}
+            </h1>
+            <p className="truncate text-xs text-gray-600 dark:text-gray-400 md:text-sm">
+              {profile.title} · {profile.company}
+            </p>
           </div>
 
           <div className="flex shrink-0 items-center gap-2">

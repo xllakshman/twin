@@ -35,7 +35,7 @@ bedrock_client = boto3.client(
 
 # Bedrock model selection - see Q42 on https://edwarddonner.com/faq for more
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
-FALLBACK_BEDROCK_MODEL_ID = os.getenv("FALLBACK_BEDROCK_MODEL_ID", "apac.amazon.nova-micro-v1:0")
+FALLBACK_BEDROCK_MODEL_ID = os.getenv("FALLBACK_BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
 QUOTA_EXCEEDED_MESSAGE = "Quota exceeded for the day, please try after sometime."
 MODEL_SWITCH_NOTICE = "Quota exceeded switching to another model available..!"
 

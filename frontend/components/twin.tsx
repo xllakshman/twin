@@ -14,7 +14,8 @@ interface Message {
     notice?: string;
 }
 
-const DEFAULT_ERROR_MESSAGE = 'Sorry, I encountered an error. Please try again.';
+const DEFAULT_ERROR_MESSAGE = "Poof! 🪄 Well, that wasn't supposed to happen. Our latest magic trick backfired and caused a tiny error. We're resetting the stage, so please try again!";
+const QUOTA_ERROR_MESSAGE = "Looks like we're out of pocket money! 🪙 We've spent all our digital tokens for today. We're just waiting for our daily allowance to refresh, so check back with us shortly!. Opologies for the inconvenience!";
 
 export default function Twin() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -324,20 +325,20 @@ export default function Twin() {
 
             <div className="shrink-0 px-3 pb-4 pt-2 md:px-6 md:pb-6">
                 <div className="mx-auto max-w-3xl space-y-3">
-                    <div className="flex justify-center">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-xs text-gray-400 dark:text-gray-500">
+                            Press Enter to send
+                        </p>
                         <button
                             type="button"
                             onClick={startNewConversation}
                             disabled={isLoading || messages.length === 0}
-                            className="inline-flex items-center gap-2 rounded-full border-2 border-blue-300 bg-blue-50 px-5 py-2.5 text-sm font-semibold text-blue-900 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-100 hover:shadow-md disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900 dark:disabled:border-gray-700 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
+                            className="inline-flex shrink-0 items-center gap-2 rounded-full border-2 border-blue-300 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-900 shadow-sm transition-all hover:border-blue-400 hover:bg-blue-100 hover:shadow-md disabled:cursor-not-allowed disabled:border-gray-200 disabled:bg-gray-100 disabled:text-gray-400 disabled:shadow-none dark:border-blue-700 dark:bg-blue-950 dark:text-blue-200 dark:hover:bg-blue-900 dark:disabled:border-gray-700 dark:disabled:bg-gray-800 dark:disabled:text-gray-500"
                         >
                             <RotateCcw className="h-4 w-4" />
                             New conversation
                         </button>
                     </div>
-                    <p className="text-center text-xs text-gray-400 dark:text-gray-500">
-                        Press Enter to send
-                    </p>
                     <div className="relative flex items-center rounded-full border border-gray-200 bg-white shadow-lg dark:border-gray-600 dark:bg-gray-800">
                         <input
                             ref={inputRef}
