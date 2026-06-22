@@ -137,11 +137,27 @@ export default function Twin() {
         inputRef.current?.focus();
     };
 
+    const [hasAvatar, setHasAvatar] = useState(false);
+    useEffect(() => {
+        fetch('/avatar.jpg', { method: 'HEAD' })
+            .then((res) => {
+                const contentType = res.headers.get('content-type') ?? '';
+                setHasAvatar(res.ok && contentType.includes('image'));
+            })
+            .catch(() => setHasAvatar(false));
+    }, []);
+
     const lastAssistantMessageId = [...messages]
         .reverse()
         .find(message => message.role === 'assistant')?.id;
 
-    const assistantIcon = (
+    const assistantAvatar = hasAvatar ? (
+        <img
+            src="/avatar.jpg"
+            alt={profile.name}
+            className="h-9 w-9 rounded-full object-cover ring-2 ring-white shadow-sm dark:ring-gray-700"
+        />
+    ) : (
         <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-900 shadow-sm dark:bg-blue-700">
             <Bot className="h-5 w-5 text-white" />
         </div>
@@ -209,7 +225,7 @@ export default function Twin() {
                                 key={message.id}
                                 className="animate-fade-in-up flex gap-3 justify-start"
                             >
-                                <div className="flex-shrink-0 pt-1">{assistantIcon}</div>
+                                <div className="flex-shrink-0 pt-1">{assistantAvatar}</div>
                                 <div className="flex max-w-[85%] flex-col gap-2 md:max-w-[75%]">
                                     {message.notice && (
                                         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -271,7 +287,7 @@ export default function Twin() {
                     {isLoading && (
                         <div className="animate-fade-in-up flex gap-3 justify-start">
                             <div className="flex-shrink-0 pt-1">
-                                <div className="animate-pulse">{assistantIcon}</div>
+                                <div className="animate-pulse">{assistantAvatar}</div>
                             </div>
                             <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                 <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
