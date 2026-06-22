@@ -51,13 +51,25 @@ echo "NEXT_PUBLIC_API_URL=$API_URL" > .env.production
 
 npm install
 npm run build
-aws s3 sync ./out "s3://$FRONTEND_BUCKET/" --delete
+aws s3 sync ./out "s3://$FRONTEND_BUCKET/" --delete \
+  --exclude "*.html" \
+  --cache-control "public, max-age=0, must-revalidate"
 find ./out -name "*.html" -print0 | while IFS= read -r -d '' html_file; do
   rel_path="${html_file#./out/}"
   aws s3 cp "$html_file" "s3://$FRONTEND_BUCKET/$rel_path" \
     --cache-control "no-cache, no-store, must-revalidate" \
     --content-type "text/html"
 done
+
+DISTRIBUTION_ID=$(terraform -chdir=terraform output -raw cloudfront_distribution_id 2>/dev/null || true)
+if [ -n "$DISTRIBUTION_ID" ] && [ "$DISTRIBUTION_ID" != "null" ]; then
+  echo "🔄 Invalidating CloudFront cache ($DISTRIBUTION_ID)..."
+  aws cloudfront create-invalidation \
+    --distribution-id "$DISTRIBUTION_ID" \
+    --paths "/*" \
+    --query "Invalidation.Id" \
+    --output text
+fi
 cd ..
 
 # 4. Final messages
