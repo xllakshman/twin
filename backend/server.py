@@ -37,6 +37,10 @@ bedrock_client = boto3.client(
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
 FALLBACK_BEDROCK_MODEL_ID = os.getenv("FALLBACK_BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
 QUOTA_EXCEEDED_MESSAGE = "Quota exceeded for the day, please try after sometime."
+QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE = (
+    "Quota exceeded switching to another model available..! "
+    "All models have reached their daily limit — please try again later."
+)
 MODEL_SWITCH_NOTICE = "Quota exceeded switching to another model available..!"
 
 # Memory storage configuration
@@ -213,7 +217,10 @@ def call_bedrock(conversation: List[Dict], user_message: str) -> BedrockResult:
             )
         except ClientError as fallback_error:
             if is_quota_throttling(fallback_error):
-                raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+                raise HTTPException(
+                    status_code=429,
+                    detail=QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE,
+                )
             handle_bedrock_client_error(fallback_error)
 
 

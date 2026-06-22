@@ -69,7 +69,7 @@ class QuotaFallbackTests(unittest.TestCase):
             server.call_bedrock([], "Hi")
 
         self.assertEqual(ctx.exception.status_code, 429)
-        self.assertEqual(ctx.exception.detail, server.QUOTA_EXCEEDED_MESSAGE)
+        self.assertEqual(ctx.exception.detail, server.QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE)
 
     @patch("server.invoke_bedrock_model")
     def test_call_bedrock_skips_fallback_when_models_match(self, mock_invoke):

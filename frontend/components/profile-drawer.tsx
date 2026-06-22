@@ -6,7 +6,7 @@ import { profile } from '@/lib/profile';
 
 export default function ProfileDrawer() {
   const [open, setOpen] = useState(false);
-  const [avatarSrc, setAvatarSrc] = useState('/avatar.png');
+  const [avatarSrc, setAvatarSrc] = useState('/avatar.jpg');
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -57,7 +57,7 @@ export default function ProfileDrawer() {
           <img
             src={avatarSrc}
             alt={profile.name}
-            onError={() => setAvatarSrc('/avatar.jpg')}
+            onError={() => setAvatarSrc('/icon.png')}
             className="mx-auto h-32 w-32 rounded-full object-cover ring-4 ring-blue-100 shadow-lg dark:ring-blue-900"
           />
           <h2 className="mt-5 text-center text-xl font-bold text-gray-900 dark:text-white">

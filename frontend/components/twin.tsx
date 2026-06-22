@@ -15,7 +15,6 @@ interface Message {
 }
 
 const DEFAULT_ERROR_MESSAGE = "Poof! 🪄 Well, that wasn't supposed to happen. Our latest magic trick backfired and caused a tiny error. We're resetting the stage, so please try again!";
-const QUOTA_ERROR_MESSAGE = "Looks like we're out of pocket money! 🪙 We've spent all our digital tokens for today. We're just waiting for our daily allowance to refresh, so check back with us shortly!. Opologies for the inconvenience!";
 
 export default function Twin() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -138,45 +137,15 @@ export default function Twin() {
         inputRef.current?.focus();
     };
 
-    const [hasAvatar, setHasAvatar] = useState(false);
-    useEffect(() => {
-        fetch('/avatar.jpg', { method: 'HEAD' })
-            .then(res => setHasAvatar(res.ok))
-            .catch(() => setHasAvatar(false));
-    }, []);
-
     const lastAssistantMessageId = [...messages]
         .reverse()
         .find(message => message.role === 'assistant')?.id;
 
-    const renderAvatar = (size: 'sm' | 'lg') => {
-        const sizeClass = size === 'lg' ? 'w-28 h-28 md:w-32 md:h-32' : 'w-9 h-9';
-        const iconSize = size === 'lg' ? 'w-14 h-14' : 'w-5 h-5';
-
-        if (hasAvatar) {
-            return (
-                <img
-                    src="/avatar.jpg"
-                    alt={profile.name}
-                    className={`${sizeClass} rounded-full object-cover ${
-                        size === 'lg'
-                            ? 'mx-auto mb-4 ring-4 ring-blue-100 shadow-lg'
-                            : 'ring-2 ring-white shadow-sm'
-                    }`}
-                />
-            );
-        }
-
-        if (size === 'lg') {
-            return <Bot className="w-14 h-14 mx-auto mb-4 text-blue-300" />;
-        }
-
-        return (
-            <div className="w-9 h-9 bg-blue-900 rounded-full flex items-center justify-center shadow-sm">
-                <Bot className={`${iconSize} text-white`} />
-            </div>
-        );
-    };
+    const assistantIcon = (
+        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-blue-900 shadow-sm dark:bg-blue-700">
+            <Bot className="h-5 w-5 text-white" />
+        </div>
+    );
 
     return (
         <div className="flex h-full w-full flex-col">
@@ -240,7 +209,7 @@ export default function Twin() {
                                 key={message.id}
                                 className="animate-fade-in-up flex gap-3 justify-start"
                             >
-                                <div className="flex-shrink-0 pt-1">{renderAvatar('sm')}</div>
+                                <div className="flex-shrink-0 pt-1">{assistantIcon}</div>
                                 <div className="flex max-w-[85%] flex-col gap-2 md:max-w-[75%]">
                                     {message.notice && (
                                         <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
@@ -302,9 +271,7 @@ export default function Twin() {
                     {isLoading && (
                         <div className="animate-fade-in-up flex gap-3 justify-start">
                             <div className="flex-shrink-0 pt-1">
-                                <div className={hasAvatar ? 'animate-pulse' : ''}>
-                                    {renderAvatar('sm')}
-                                </div>
+                                <div className="animate-pulse">{assistantIcon}</div>
                             </div>
                             <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
                                 <p className="mb-2 text-sm font-medium text-gray-500 dark:text-gray-400">
