@@ -11,7 +11,10 @@ interface Message {
     content: string;
     timestamp: Date;
     suggestedQuestions?: string[];
+    notice?: string;
 }
+
+const DEFAULT_ERROR_MESSAGE = 'Sorry, I encountered an error. Please try again.';
 
 export default function Twin() {
     const [messages, setMessages] = useState<Message[]>([]);
@@ -58,7 +61,18 @@ export default function Twin() {
                 }),
             });
 
-            if (!response.ok) throw new Error('Failed to send message');
+            if (!response.ok) {
+                let errorDetail = DEFAULT_ERROR_MESSAGE;
+                try {
+                    const errorData = await response.json();
+                    if (typeof errorData.detail === 'string' && errorData.detail.trim()) {
+                        errorDetail = errorData.detail;
+                    }
+                } catch {
+                    // Keep default error message when response body is not JSON.
+                }
+                throw new Error(errorDetail);
+            }
 
             const data = await response.json();
 
@@ -72,15 +86,20 @@ export default function Twin() {
                 content: data.response,
                 timestamp: new Date(),
                 suggestedQuestions: data.suggested_questions ?? [],
+                notice: data.notice ?? undefined,
             };
 
             setMessages(prev => [...prev, assistantMessage]);
         } catch (error) {
             console.error('Error:', error);
+            const errorText =
+                error instanceof Error && error.message.trim()
+                    ? error.message
+                    : DEFAULT_ERROR_MESSAGE;
             const errorMessage: Message = {
                 id: (Date.now() + 1).toString(),
                 role: 'assistant',
-                content: 'Sorry, I encountered an error. Please try again.',
+                content: errorText,
                 timestamp: new Date(),
             };
             setMessages(prev => [...prev, errorMessage]);
@@ -222,6 +241,11 @@ export default function Twin() {
                             >
                                 <div className="flex-shrink-0 pt-1">{renderAvatar('sm')}</div>
                                 <div className="flex max-w-[85%] flex-col gap-2 md:max-w-[75%]">
+                                    {message.notice && (
+                                        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-200">
+                                            {message.notice}
+                                        </p>
+                                    )}
                                     <div className="rounded-2xl rounded-bl-md border border-gray-100 bg-white p-4 text-gray-800 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100">
                                         <MessageContent content={message.content} />
                                         <div className="mt-2 flex items-center justify-between gap-2">

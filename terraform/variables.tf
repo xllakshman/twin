@@ -22,6 +22,12 @@ variable "bedrock_model_id" {
   default     = "apac.amazon.nova-micro-v1:0"
 }
 
+variable "bedrock_fallback_model_id" {
+  description = "Fallback Bedrock model ID when primary hits quota throttling"
+  type        = string
+  default     = "apac.amazon.nova-micro-v1:0"
+}
+
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"
   type        = number

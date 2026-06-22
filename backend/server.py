@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
-from typing import Optional, List, Dict, Tuple
+from typing import Optional, List, Dict, Tuple, NamedTuple
 import json
 import uuid
 import re
@@ -35,6 +35,9 @@ bedrock_client = boto3.client(
 
 # Bedrock model selection - see Q42 on https://edwarddonner.com/faq for more
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
+FALLBACK_BEDROCK_MODEL_ID = os.getenv("FALLBACK_BEDROCK_MODEL_ID", "apac.amazon.nova-micro-v1:0")
+QUOTA_EXCEEDED_MESSAGE = "Quota exceeded for the day, please try after sometime."
+MODEL_SWITCH_NOTICE = "Quota exceeded switching to another model available..!"
 
 # Memory storage configuration
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
@@ -56,6 +59,12 @@ class ChatResponse(BaseModel):
     response: str
     session_id: str
     suggested_questions: List[str] = []
+    notice: Optional[str] = None
+
+
+class BedrockResult(NamedTuple):
+    text: str
+    notice: Optional[str] = None
 
 
 class Message(BaseModel):
@@ -128,52 +137,84 @@ def extract_suggested_questions(text: str) -> Tuple[str, List[str]]:
     return clean_response, questions[:3]
 
 
-def call_bedrock(conversation: List[Dict], user_message: str) -> str:
-    """Call AWS Bedrock with conversation history"""
-    
-    # Build messages in Bedrock format
-    messages = []
+def is_quota_throttling(error: ClientError) -> bool:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    if error_code == "ThrottlingException":
+        return True
+    message = error.response.get("Error", {}).get("Message", "").lower()
+    return "too many tokens" in message or "throttl" in message
 
-    # Add conversation history (limit to last 25 exchanges)
+
+def build_bedrock_messages(conversation: List[Dict], user_message: str) -> List[Dict]:
+    messages = []
     for msg in conversation[-50:]:
         messages.append({
             "role": msg["role"],
-            "content": [{"text": msg["content"]}]
+            "content": [{"text": msg["content"]}],
         })
-
-    # Add current user message
     messages.append({
         "role": "user",
-        "content": [{"text": user_message}]
+        "content": [{"text": user_message}],
     })
+    return messages
+
+
+def invoke_bedrock_model(model_id: str, messages: List[Dict]) -> str:
+    response = bedrock_client.converse(
+        modelId=model_id,
+        messages=messages,
+        system=[{"text": prompt()}],
+        inferenceConfig={
+            "maxTokens": 2000,
+            "temperature": 0.7,
+            "topP": 0.9,
+        },
+    )
+    return response["output"]["message"]["content"][0]["text"]
+
+
+def handle_bedrock_client_error(error: ClientError) -> None:
+    error_code = error.response.get("Error", {}).get("Code", "")
+    if error_code == "ValidationException":
+        print(f"Bedrock validation error: {error}")
+        raise HTTPException(status_code=400, detail=str(error))
+    if error_code == "AccessDeniedException":
+        print(f"Bedrock access denied: {error}")
+        raise HTTPException(status_code=403, detail="Access denied to Bedrock model")
+    if is_quota_throttling(error):
+        raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+    print(f"Bedrock error: {error}")
+    raise HTTPException(status_code=500, detail=f"Bedrock error: {str(error)}")
+
+
+def call_bedrock(conversation: List[Dict], user_message: str) -> BedrockResult:
+    """Call AWS Bedrock with conversation history, falling back on quota throttling."""
+    messages = build_bedrock_messages(conversation, user_message)
 
     try:
-        # Call Bedrock using the converse API
-        response = bedrock_client.converse(
-            modelId=BEDROCK_MODEL_ID,
-            messages=messages,
-            system=[{"text": prompt()}],
-            inferenceConfig={
-                "maxTokens": 2000,
-                "temperature": 0.7,
-                "topP": 0.9
-            }
+        return BedrockResult(invoke_bedrock_model(BEDROCK_MODEL_ID, messages))
+    except ClientError as primary_error:
+        can_fallback = (
+            is_quota_throttling(primary_error)
+            and FALLBACK_BEDROCK_MODEL_ID
+            and FALLBACK_BEDROCK_MODEL_ID != BEDROCK_MODEL_ID
         )
-        
-        # Extract the response text
-        return response["output"]["message"]["content"][0]["text"]
-        
-    except ClientError as e:
-        error_code = e.response['Error']['Code']
-        if error_code == 'ValidationException':
-            print(f"Bedrock validation error: {e}")
-            raise HTTPException(status_code=400, detail=str(e))
-        elif error_code == 'AccessDeniedException':
-            print(f"Bedrock access denied: {e}")
-            raise HTTPException(status_code=403, detail="Access denied to Bedrock model")
-        else:
-            print(f"Bedrock error: {e}")
-            raise HTTPException(status_code=500, detail=f"Bedrock error: {str(e)}")
+        if not can_fallback:
+            handle_bedrock_client_error(primary_error)
+
+        print(
+            f"Primary model throttled ({BEDROCK_MODEL_ID}), "
+            f"trying fallback {FALLBACK_BEDROCK_MODEL_ID}"
+        )
+        try:
+            return BedrockResult(
+                invoke_bedrock_model(FALLBACK_BEDROCK_MODEL_ID, messages),
+                notice=MODEL_SWITCH_NOTICE,
+            )
+        except ClientError as fallback_error:
+            if is_quota_throttling(fallback_error):
+                raise HTTPException(status_code=429, detail=QUOTA_EXCEEDED_MESSAGE)
+            handle_bedrock_client_error(fallback_error)
 
 
 @app.get("/")
@@ -205,8 +246,8 @@ async def chat(request: ChatRequest):
         conversation = load_conversation(session_id)
 
         # Call Bedrock for response
-        raw_response = call_bedrock(conversation, request.message)
-        assistant_response, suggested_questions = extract_suggested_questions(raw_response)
+        bedrock_result = call_bedrock(conversation, request.message)
+        assistant_response, suggested_questions = extract_suggested_questions(bedrock_result.text)
 
         # Update conversation history
         conversation.append(
@@ -227,6 +268,7 @@ async def chat(request: ChatRequest):
             response=assistant_response,
             session_id=session_id,
             suggested_questions=suggested_questions,
+            notice=bedrock_result.notice,
         )
 
     except HTTPException:
