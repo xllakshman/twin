@@ -139,6 +139,9 @@ resource "aws_lambda_function" "api" {
       USE_S3              = "true"
       BEDROCK_MODEL_ID           = var.bedrock_model_id
       FALLBACK_BEDROCK_MODEL_ID  = var.bedrock_fallback_model_id
+      LLM_PROVIDER               = var.llm_provider
+      OPENAI_MODEL               = var.openai_model_id
+      OPENAI_API_KEY             = var.openai_api_key
       DEFAULT_AWS_REGION         = data.aws_region.current.region
     }
   }

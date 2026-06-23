@@ -28,6 +28,29 @@ variable "bedrock_fallback_model_id" {
   default     = "apac.amazon.nova-lite-v1:0"
 }
 
+variable "llm_provider" {
+  description = "LLM provider mode: bedrock, openai, or bedrock_with_openai_fallback"
+  type        = string
+  default     = "bedrock"
+  validation {
+    condition     = contains(["bedrock", "openai", "bedrock_with_openai_fallback"], var.llm_provider)
+    error_message = "llm_provider must be bedrock, openai, or bedrock_with_openai_fallback."
+  }
+}
+
+variable "openai_model_id" {
+  description = "OpenAI model ID used for OpenAI provider or Bedrock fallback"
+  type        = string
+  default     = "gpt-4o-mini"
+}
+
+variable "openai_api_key" {
+  description = "OpenAI API key (dev fallback only; leave empty for prod)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
 variable "lambda_timeout" {
   description = "Lambda function timeout in seconds"
   type        = number

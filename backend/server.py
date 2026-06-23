@@ -10,6 +10,7 @@ import re
 from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
+from openai import OpenAI
 from context import prompt
 
 # Load environment variables
@@ -29,19 +30,24 @@ app.add_middleware(
 
 # Initialize Bedrock client - see Q42 on https://edwarddonner.com/faq if the Region gives you problems
 bedrock_client = boto3.client(
-    service_name="bedrock-runtime", 
-    region_name=os.getenv("DEFAULT_AWS_REGION", "us-east-1")
+    service_name="bedrock-runtime",
+    region_name=os.getenv("DEFAULT_AWS_REGION", "us-east-1"),
 )
 
-# Bedrock model selection - see Q42 on https://edwarddonner.com/faq for more
+# Model / provider configuration
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "bedrock")
 BEDROCK_MODEL_ID = os.getenv("BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
 FALLBACK_BEDROCK_MODEL_ID = os.getenv("FALLBACK_BEDROCK_MODEL_ID", "apac.amazon.nova-lite-v1:0")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", "")
+OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 QUOTA_EXCEEDED_MESSAGE = "Quota exceeded for the day, please try after sometime."
 QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE = (
     "Quota exceeded switching to another model available..! "
     "All models have reached their daily limit — please try again later."
 )
 MODEL_SWITCH_NOTICE = "Quota exceeded switching to another model available..!"
+
+_openai_client: Optional[OpenAI] = None
 
 # Memory storage configuration
 USE_S3 = os.getenv("USE_S3", "false").lower() == "true"
@@ -66,7 +72,7 @@ class ChatResponse(BaseModel):
     notice: Optional[str] = None
 
 
-class BedrockResult(NamedTuple):
+class LLMResult(NamedTuple):
     text: str
     notice: Optional[str] = None
 
@@ -75,6 +81,19 @@ class Message(BaseModel):
     role: str
     content: str
     timestamp: str
+
+
+def openai_fallback_enabled() -> bool:
+    return LLM_PROVIDER == "bedrock_with_openai_fallback" and bool(OPENAI_API_KEY)
+
+
+def get_openai_client() -> OpenAI:
+    global _openai_client
+    if not OPENAI_API_KEY:
+        raise ValueError("OPENAI_API_KEY is not configured")
+    if _openai_client is None:
+        _openai_client = OpenAI(api_key=OPENAI_API_KEY)
+    return _openai_client
 
 
 # Memory management functions
@@ -93,7 +112,6 @@ def load_conversation(session_id: str) -> List[Dict]:
                 return []
             raise
     else:
-        # Local file storage
         file_path = os.path.join(MEMORY_DIR, get_memory_path(session_id))
         if os.path.exists(file_path):
             with open(file_path, "r") as f:
@@ -111,7 +129,6 @@ def save_conversation(session_id: str, messages: List[Dict]):
             ContentType="application/json",
         )
     else:
-        # Local file storage
         os.makedirs(MEMORY_DIR, exist_ok=True)
         file_path = os.path.join(MEMORY_DIR, get_memory_path(session_id))
         with open(file_path, "w") as f:
@@ -163,6 +180,15 @@ def build_bedrock_messages(conversation: List[Dict], user_message: str) -> List[
     return messages
 
 
+def build_openai_messages(conversation: List[Dict], user_message: str) -> List[Dict]:
+    messages = [{"role": "system", "content": prompt()}]
+    for msg in conversation[-50:]:
+        if msg["role"] in ("user", "assistant"):
+            messages.append({"role": msg["role"], "content": msg["content"]})
+    messages.append({"role": "user", "content": user_message})
+    return messages
+
+
 def invoke_bedrock_model(model_id: str, messages: List[Dict]) -> str:
     response = bedrock_client.converse(
         modelId=model_id,
@@ -175,6 +201,16 @@ def invoke_bedrock_model(model_id: str, messages: List[Dict]) -> str:
         },
     )
     return response["output"]["message"]["content"][0]["text"]
+
+
+def invoke_openai(conversation: List[Dict], user_message: str) -> str:
+    response = get_openai_client().chat.completions.create(
+        model=OPENAI_MODEL,
+        messages=build_openai_messages(conversation, user_message),
+        max_tokens=2000,
+        temperature=0.7,
+    )
+    return response.choices[0].message.content or ""
 
 
 def handle_bedrock_client_error(error: ClientError) -> None:
@@ -191,72 +227,97 @@ def handle_bedrock_client_error(error: ClientError) -> None:
     raise HTTPException(status_code=500, detail=f"Bedrock error: {str(error)}")
 
 
-def call_bedrock(conversation: List[Dict], user_message: str) -> BedrockResult:
-    """Call AWS Bedrock with conversation history, falling back on quota throttling."""
-    messages = build_bedrock_messages(conversation, user_message)
-
+def try_openai_fallback(conversation: List[Dict], user_message: str) -> LLMResult:
+    print(f"Bedrock throttled, falling back to OpenAI ({OPENAI_MODEL})")
     try:
-        return BedrockResult(invoke_bedrock_model(BEDROCK_MODEL_ID, messages))
-    except ClientError as primary_error:
-        can_fallback = (
-            is_quota_throttling(primary_error)
-            and FALLBACK_BEDROCK_MODEL_ID
-            and FALLBACK_BEDROCK_MODEL_ID != BEDROCK_MODEL_ID
+        return LLMResult(
+            invoke_openai(conversation, user_message),
+            notice=MODEL_SWITCH_NOTICE,
         )
-        if not can_fallback:
+    except Exception as error:
+        print(f"OpenAI fallback failed: {error}")
+        raise HTTPException(
+            status_code=429,
+            detail=QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE,
+        )
+
+
+def try_bedrock_model_fallback(messages: List[Dict]) -> LLMResult:
+    print(
+        f"Primary model throttled ({BEDROCK_MODEL_ID}), "
+        f"trying Bedrock fallback {FALLBACK_BEDROCK_MODEL_ID}"
+    )
+    try:
+        return LLMResult(
+            invoke_bedrock_model(FALLBACK_BEDROCK_MODEL_ID, messages),
+            notice=MODEL_SWITCH_NOTICE,
+        )
+    except ClientError as fallback_error:
+        if is_quota_throttling(fallback_error):
+            raise HTTPException(
+                status_code=429,
+                detail=QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE,
+            )
+        handle_bedrock_client_error(fallback_error)
+
+
+def call_llm(conversation: List[Dict], user_message: str) -> LLMResult:
+    """Generate a reply using the configured LLM provider and fallback rules."""
+    if LLM_PROVIDER == "openai":
+        return LLMResult(invoke_openai(conversation, user_message))
+
+    messages = build_bedrock_messages(conversation, user_message)
+    try:
+        return LLMResult(invoke_bedrock_model(BEDROCK_MODEL_ID, messages))
+    except ClientError as primary_error:
+        if not is_quota_throttling(primary_error):
             handle_bedrock_client_error(primary_error)
 
-        print(
-            f"Primary model throttled ({BEDROCK_MODEL_ID}), "
-            f"trying fallback {FALLBACK_BEDROCK_MODEL_ID}"
-        )
-        try:
-            return BedrockResult(
-                invoke_bedrock_model(FALLBACK_BEDROCK_MODEL_ID, messages),
-                notice=MODEL_SWITCH_NOTICE,
-            )
-        except ClientError as fallback_error:
-            if is_quota_throttling(fallback_error):
-                raise HTTPException(
-                    status_code=429,
-                    detail=QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE,
-                )
-            handle_bedrock_client_error(fallback_error)
+        if openai_fallback_enabled():
+            return try_openai_fallback(conversation, user_message)
+
+        if (
+            LLM_PROVIDER == "bedrock"
+            and FALLBACK_BEDROCK_MODEL_ID
+            and FALLBACK_BEDROCK_MODEL_ID != BEDROCK_MODEL_ID
+        ):
+            return try_bedrock_model_fallback(messages)
+
+        handle_bedrock_client_error(primary_error)
 
 
 @app.get("/")
 async def root():
     return {
-        "message": "AI Digital Twin API (Powered by AWS Bedrock)",
+        "message": "AI Digital Twin API",
         "memory_enabled": True,
         "storage": "S3" if USE_S3 else "local",
-        "ai_model": BEDROCK_MODEL_ID
+        "llm_provider": LLM_PROVIDER,
+        "ai_model": OPENAI_MODEL if LLM_PROVIDER == "openai" else BEDROCK_MODEL_ID,
     }
 
 
 @app.get("/health")
 async def health_check():
     return {
-        "status": "healthy", 
+        "status": "healthy",
         "use_s3": USE_S3,
-        "bedrock_model": BEDROCK_MODEL_ID
+        "llm_provider": LLM_PROVIDER,
+        "bedrock_model": BEDROCK_MODEL_ID,
+        "openai_model": OPENAI_MODEL if OPENAI_API_KEY else None,
+        "openai_fallback_enabled": openai_fallback_enabled(),
     }
 
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
     try:
-        # Generate session ID if not provided
         session_id = request.session_id or str(uuid.uuid4())
-
-        # Load conversation history
         conversation = load_conversation(session_id)
 
-        # Call Bedrock for response
-        bedrock_result = call_bedrock(conversation, request.message)
-        assistant_response, suggested_questions = extract_suggested_questions(bedrock_result.text)
+        llm_result = call_llm(conversation, request.message)
+        assistant_response, suggested_questions = extract_suggested_questions(llm_result.text)
 
-        # Update conversation history
         conversation.append(
             {"role": "user", "content": request.message, "timestamp": datetime.now().isoformat()}
         )
@@ -268,14 +329,13 @@ async def chat(request: ChatRequest):
             }
         )
 
-        # Save conversation
         save_conversation(session_id, conversation)
 
         return ChatResponse(
             response=assistant_response,
             session_id=session_id,
             suggested_questions=suggested_questions,
-            notice=bedrock_result.notice,
+            notice=llm_result.notice,
         )
 
     except HTTPException:
