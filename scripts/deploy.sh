@@ -35,9 +35,9 @@ else
   TF_APPLY_CMD=(terraform apply -var="project_name=$PROJECT_NAME" -var="environment=$ENVIRONMENT" -auto-approve)
 fi
 
-if [ "$ENVIRONMENT" = "dev" ] && [ -n "${OPENAI_API_KEY:-}" ]; then
+if [ -n "${OPENAI_API_KEY:-}" ]; then
   export TF_VAR_openai_api_key="$OPENAI_API_KEY"
-  echo "🔑 OpenAI fallback enabled for dev deployment"
+  echo "🔑 OpenAI API key configured for ${ENVIRONMENT} deployment"
 fi
 
 echo "🎯 Applying Terraform..."

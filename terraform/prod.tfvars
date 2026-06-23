@@ -1,8 +1,9 @@
-project_name             = "twin"
-environment              = "prod"
-bedrock_model_id         = "apac.amazon.nova-lite-v1:0"
-bedrock_fallback_model_id = "apac.amazon.nova-micro-v1:0"
-llm_provider             = "bedrock"
+project_name              = "twin"
+environment               = "prod"
+bedrock_model_id          = "apac.amazon.nova-micro-v1:0"
+bedrock_fallback_model_id = "apac.amazon.nova-lite-v1:0"
+llm_provider              = "openai_with_bedrock_fallback"
+openai_model_id           = "gpt-4o-mini"
 lambda_timeout           = 60
 api_throttle_burst_limit = 20
 api_throttle_rate_limit  = 10
