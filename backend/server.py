@@ -11,7 +11,7 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 from openai import OpenAI
-from context import prompt, OPENAI_JSON_INSTRUCTION
+from context import prompt, OPENAI_JSON_INSTRUCTION, name
 
 # Load environment variables
 load_dotenv()
@@ -46,6 +46,16 @@ QUOTA_EXCEEDED_AFTER_FALLBACK_MESSAGE = (
     "All models have reached their daily limit — please try again later."
 )
 MODEL_SWITCH_NOTICE = "Quota exceeded switching to another model available..!"
+
+GREETING_RESPONSE_FALLBACK = (
+    f"Hi! Thanks for visiting — I'm {name}'s digital twin. "
+    "Feel free to ask about my career at Amazon, recent projects, or leadership experience."
+)
+DEFAULT_GREETING_QUESTIONS = [
+    "What is your role at Amazon?",
+    "Tell me about a recent project you led.",
+    "What teams do you work with?",
+]
 
 _openai_client: Optional[OpenAI] = None
 
@@ -253,21 +263,38 @@ def invoke_bedrock_model(model_id: str, messages: List[Dict]) -> str:
 def parse_openai_content(content: str) -> LLMResult:
     try:
         data = json.loads(content)
-        if isinstance(data, dict) and "response" in data:
-            questions = [
-                normalize_question_line(str(question))
-                for question in data.get("suggested_questions", [])
-                if str(question).strip()
-            ]
-            return LLMResult(
-                text=str(data.get("response", "")).strip(),
-                suggested_questions=questions[:3],
+        if isinstance(data, dict):
+            text = (
+                data.get("response")
+                or data.get("answer")
+                or data.get("message")
+                or data.get("reply")
+                or ""
             )
+            if "response" in data or "answer" in data or "message" in data or "reply" in data:
+                questions = [
+                    normalize_question_line(str(question))
+                    for question in data.get("suggested_questions", [])
+                    if str(question).strip()
+                ]
+                return LLMResult(
+                    text=str(text).strip(),
+                    suggested_questions=questions[:3],
+                )
     except json.JSONDecodeError:
         pass
 
     clean_response, questions = extract_suggested_questions(content)
     return LLMResult(text=clean_response, suggested_questions=questions)
+
+
+def ensure_nonempty_response(user_message: str, response: str, suggested_questions: List[str]) -> Tuple[str, List[str]]:
+    if response.strip():
+        return response, suggested_questions
+
+    print(f"Empty LLM response for message: {user_message!r}; using greeting fallback")
+    questions = suggested_questions or DEFAULT_GREETING_QUESTIONS[:3]
+    return GREETING_RESPONSE_FALLBACK, questions
 
 
 def invoke_openai(conversation: List[Dict], user_message: str) -> LLMResult:
@@ -418,6 +445,12 @@ async def chat(request: ChatRequest):
             suggested_questions = llm_result.suggested_questions
         else:
             assistant_response, suggested_questions = extract_suggested_questions(llm_result.text)
+
+        assistant_response, suggested_questions = ensure_nonempty_response(
+            request.message,
+            assistant_response,
+            suggested_questions,
+        )
 
         conversation.append(
             {"role": "user", "content": request.message, "timestamp": datetime.now().isoformat()}

@@ -187,6 +187,11 @@ class SuggestionExtractionTests(unittest.TestCase):
             ["What teams do you work with?", "Tell me about a recent project?"],
         )
 
+    def test_ensure_nonempty_response_uses_greeting_fallback(self):
+        response, questions = server.ensure_nonempty_response("hi", "", [])
+        self.assertTrue(response.strip())
+        self.assertEqual(len(questions), 3)
+
 
 if __name__ == "__main__":
     unittest.main()

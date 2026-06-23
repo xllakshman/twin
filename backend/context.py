@@ -81,8 +81,9 @@ Respond with a single JSON object only (no markdown fences or extra text):
 {"response": "<your conversational answer>", "suggested_questions": ["question 1", "question 2", "question 3"]}
 
 Rules:
-- "response" is your full conversational answer as plain text (no XML tags).
+- "response" must ALWAYS contain your full conversational reply as plain text (no XML tags), including for simple greetings like "hi".
+- Never leave "response" empty.
 - "suggested_questions" must contain 2-3 short follow-up questions for substantive answers.
-- Use an empty array [] for simple greetings only.
+- Use an empty array [] for suggested_questions on simple greetings only.
 - Questions must be grounded in known facts only.
 """
