@@ -58,9 +58,9 @@ Avoid responding in a way that feels like a chatbot or AI assistant, and don't e
 
 ## Suggested follow-up questions
 
-After your main answer, suggest 2-3 short follow-up questions the visitor might ask next, based on their question and your answer.
+For every substantive answer (more than one sentence), you MUST suggest 2-3 short follow-up questions the visitor might ask next.
 Questions must be grounded in known facts only — do not invent topics.
-Skip this block for simple greetings or very brief casual exchanges.
+Only skip suggestions for single-word greetings such as "hi" or "hello".
 
 Append exactly this block at the very end of your reply (not visible as part of the conversational answer):
 
@@ -71,4 +71,18 @@ How do you approach cross-functional program management?
 </SUGGESTED_QUESTIONS>
 
 Each line must be a single short question only — no numbering or labels.
+"""
+
+
+OPENAI_JSON_INSTRUCTION = """
+## Response format
+
+Respond with a single JSON object only (no markdown fences or extra text):
+{"response": "<your conversational answer>", "suggested_questions": ["question 1", "question 2", "question 3"]}
+
+Rules:
+- "response" is your full conversational answer as plain text (no XML tags).
+- "suggested_questions" must contain 2-3 short follow-up questions for substantive answers.
+- Use an empty array [] for simple greetings only.
+- Questions must be grounded in known facts only.
 """

@@ -29,12 +29,12 @@ variable "bedrock_fallback_model_id" {
 }
 
 variable "llm_provider" {
-  description = "LLM provider mode: bedrock, openai, or bedrock_with_openai_fallback"
+  description = "LLM provider mode: bedrock, openai, bedrock_with_openai_fallback, or openai_with_bedrock_fallback"
   type        = string
   default     = "bedrock"
   validation {
-    condition     = contains(["bedrock", "openai", "bedrock_with_openai_fallback"], var.llm_provider)
-    error_message = "llm_provider must be bedrock, openai, or bedrock_with_openai_fallback."
+    condition     = contains(["bedrock", "openai", "bedrock_with_openai_fallback", "openai_with_bedrock_fallback"], var.llm_provider)
+    error_message = "llm_provider must be bedrock, openai, bedrock_with_openai_fallback, or openai_with_bedrock_fallback."
   }
 }
 

@@ -11,7 +11,7 @@ from datetime import datetime
 import boto3
 from botocore.exceptions import ClientError
 from openai import OpenAI
-from context import prompt
+from context import prompt, OPENAI_JSON_INSTRUCTION
 
 # Load environment variables
 load_dotenv()
@@ -75,6 +75,7 @@ class ChatResponse(BaseModel):
 class LLMResult(NamedTuple):
     text: str
     notice: Optional[str] = None
+    suggested_questions: Optional[List[str]] = None
 
 
 class Message(BaseModel):
@@ -85,6 +86,10 @@ class Message(BaseModel):
 
 def openai_fallback_enabled() -> bool:
     return LLM_PROVIDER == "bedrock_with_openai_fallback" and bool(OPENAI_API_KEY)
+
+
+def openai_primary_enabled() -> bool:
+    return LLM_PROVIDER == "openai_with_bedrock_fallback" and bool(OPENAI_API_KEY)
 
 
 def get_openai_client() -> OpenAI:
@@ -139,22 +144,63 @@ SUGGESTIONS_PATTERN = re.compile(
     r"<SUGGESTED_QUESTIONS>\s*(.*?)\s*</SUGGESTED_QUESTIONS>",
     re.DOTALL | re.IGNORECASE,
 )
+TRAILING_QUESTION_LINE = re.compile(r"^[-•*]?\s*(.+?\?)\s*$")
+
+
+def normalize_question_line(line: str) -> str:
+    line = line.strip().lstrip("-•*").strip()
+    line = re.sub(r"^(?:first|second|third)\s+follow-up\s+question:\s*", "", line, flags=re.IGNORECASE)
+    line = re.sub(r"^\d+[.)]\s*", "", line)
+    return line.strip()
 
 
 def extract_suggested_questions(text: str) -> Tuple[str, List[str]]:
     """Strip the suggestions block from the reply and return clean text + questions."""
     match = SUGGESTIONS_PATTERN.search(text)
-    if not match:
+    if match:
+        clean_response = SUGGESTIONS_PATTERN.sub("", text).strip()
+        questions = []
+        for line in match.group(1).splitlines():
+            line = normalize_question_line(line)
+            if line:
+                questions.append(line)
+        if questions:
+            return clean_response, questions[:3]
+
+    return extract_trailing_question_suggestions(text)
+
+
+def extract_trailing_question_suggestions(text: str) -> Tuple[str, List[str]]:
+    """Fallback: pick up trailing question lines when the model skips XML tags."""
+    lines = text.splitlines()
+    questions: List[str] = []
+    cutoff = len(lines)
+
+    for index in range(len(lines) - 1, -1, -1):
+        line = lines[index].strip()
+        if not line:
+            if questions:
+                cutoff = index
+                break
+            continue
+
+        match = TRAILING_QUESTION_LINE.match(line)
+        if match:
+            question = normalize_question_line(match.group(1))
+            if question:
+                questions.insert(0, question)
+                cutoff = index
+                if len(questions) >= 3:
+                    break
+            continue
+
+        if questions:
+            break
+
+    if not questions:
         return text.strip(), []
 
-    clean_response = SUGGESTIONS_PATTERN.sub("", text).strip()
-    questions = []
-    for line in match.group(1).splitlines():
-        line = line.strip().lstrip("-•").strip()
-        line = re.sub(r"^(?:first|second|third)\s+follow-up\s+question:\s*", "", line, flags=re.IGNORECASE)
-        line = re.sub(r"^\d+[.)]\s*", "", line)
-        if line:
-            questions.append(line)
+    clean_response = "\n".join(lines[:cutoff]).strip()
     return clean_response, questions[:3]
 
 
@@ -181,7 +227,8 @@ def build_bedrock_messages(conversation: List[Dict], user_message: str) -> List[
 
 
 def build_openai_messages(conversation: List[Dict], user_message: str) -> List[Dict]:
-    messages = [{"role": "system", "content": prompt()}]
+    system_prompt = prompt() + OPENAI_JSON_INSTRUCTION
+    messages = [{"role": "system", "content": system_prompt}]
     for msg in conversation[-50:]:
         if msg["role"] in ("user", "assistant"):
             messages.append({"role": msg["role"], "content": msg["content"]})
@@ -203,14 +250,36 @@ def invoke_bedrock_model(model_id: str, messages: List[Dict]) -> str:
     return response["output"]["message"]["content"][0]["text"]
 
 
-def invoke_openai(conversation: List[Dict], user_message: str) -> str:
+def parse_openai_content(content: str) -> LLMResult:
+    try:
+        data = json.loads(content)
+        if isinstance(data, dict) and "response" in data:
+            questions = [
+                normalize_question_line(str(question))
+                for question in data.get("suggested_questions", [])
+                if str(question).strip()
+            ]
+            return LLMResult(
+                text=str(data.get("response", "")).strip(),
+                suggested_questions=questions[:3],
+            )
+    except json.JSONDecodeError:
+        pass
+
+    clean_response, questions = extract_suggested_questions(content)
+    return LLMResult(text=clean_response, suggested_questions=questions)
+
+
+def invoke_openai(conversation: List[Dict], user_message: str) -> LLMResult:
     response = get_openai_client().chat.completions.create(
         model=OPENAI_MODEL,
         messages=build_openai_messages(conversation, user_message),
         max_tokens=2000,
         temperature=0.7,
+        response_format={"type": "json_object"},
     )
-    return response.choices[0].message.content or ""
+    content = response.choices[0].message.content or ""
+    return parse_openai_content(content)
 
 
 def handle_bedrock_client_error(error: ClientError) -> None:
@@ -230,10 +299,8 @@ def handle_bedrock_client_error(error: ClientError) -> None:
 def try_openai_fallback(conversation: List[Dict], user_message: str) -> LLMResult:
     print(f"Bedrock throttled, falling back to OpenAI ({OPENAI_MODEL})")
     try:
-        return LLMResult(
-            invoke_openai(conversation, user_message),
-            notice=MODEL_SWITCH_NOTICE,
-        )
+        result = invoke_openai(conversation, user_message)
+        return LLMResult(result.text, notice=MODEL_SWITCH_NOTICE, suggested_questions=result.suggested_questions)
     except Exception as error:
         print(f"OpenAI fallback failed: {error}")
         raise HTTPException(
@@ -242,16 +309,32 @@ def try_openai_fallback(conversation: List[Dict], user_message: str) -> LLMResul
         )
 
 
+def try_bedrock_fallback(conversation: List[Dict], user_message: str, reason: str) -> LLMResult:
+    print(f"{reason}, falling back to Bedrock ({BEDROCK_MODEL_ID})")
+    messages = build_bedrock_messages(conversation, user_message)
+    try:
+        text = invoke_bedrock_model(BEDROCK_MODEL_ID, messages)
+        clean_response, questions = extract_suggested_questions(text)
+        return LLMResult(clean_response, notice=MODEL_SWITCH_NOTICE, suggested_questions=questions)
+    except ClientError as primary_error:
+        if not is_quota_throttling(primary_error):
+            handle_bedrock_client_error(primary_error)
+
+        if FALLBACK_BEDROCK_MODEL_ID and FALLBACK_BEDROCK_MODEL_ID != BEDROCK_MODEL_ID:
+            return try_bedrock_model_fallback(messages)
+
+        handle_bedrock_client_error(primary_error)
+
+
 def try_bedrock_model_fallback(messages: List[Dict]) -> LLMResult:
     print(
         f"Primary model throttled ({BEDROCK_MODEL_ID}), "
         f"trying Bedrock fallback {FALLBACK_BEDROCK_MODEL_ID}"
     )
     try:
-        return LLMResult(
-            invoke_bedrock_model(FALLBACK_BEDROCK_MODEL_ID, messages),
-            notice=MODEL_SWITCH_NOTICE,
-        )
+        text = invoke_bedrock_model(FALLBACK_BEDROCK_MODEL_ID, messages)
+        clean_response, questions = extract_suggested_questions(text)
+        return LLMResult(clean_response, notice=MODEL_SWITCH_NOTICE, suggested_questions=questions)
     except ClientError as fallback_error:
         if is_quota_throttling(fallback_error):
             raise HTTPException(
@@ -261,14 +344,12 @@ def try_bedrock_model_fallback(messages: List[Dict]) -> LLMResult:
         handle_bedrock_client_error(fallback_error)
 
 
-def call_llm(conversation: List[Dict], user_message: str) -> LLMResult:
-    """Generate a reply using the configured LLM provider and fallback rules."""
-    if LLM_PROVIDER == "openai":
-        return LLMResult(invoke_openai(conversation, user_message))
-
+def call_bedrock_llm(conversation: List[Dict], user_message: str) -> LLMResult:
     messages = build_bedrock_messages(conversation, user_message)
     try:
-        return LLMResult(invoke_bedrock_model(BEDROCK_MODEL_ID, messages))
+        text = invoke_bedrock_model(BEDROCK_MODEL_ID, messages)
+        clean_response, questions = extract_suggested_questions(text)
+        return LLMResult(clean_response, suggested_questions=questions)
     except ClientError as primary_error:
         if not is_quota_throttling(primary_error):
             handle_bedrock_client_error(primary_error)
@@ -284,6 +365,21 @@ def call_llm(conversation: List[Dict], user_message: str) -> LLMResult:
             return try_bedrock_model_fallback(messages)
 
         handle_bedrock_client_error(primary_error)
+
+
+def call_llm(conversation: List[Dict], user_message: str) -> LLMResult:
+    """Generate a reply using the configured LLM provider and fallback rules."""
+    if LLM_PROVIDER == "openai":
+        return invoke_openai(conversation, user_message)
+
+    if openai_primary_enabled():
+        try:
+            return invoke_openai(conversation, user_message)
+        except Exception as error:
+            print(f"OpenAI primary failed: {error}")
+            return try_bedrock_fallback(conversation, user_message, "OpenAI unavailable")
+
+    return call_bedrock_llm(conversation, user_message)
 
 
 @app.get("/")
@@ -306,6 +402,7 @@ async def health_check():
         "bedrock_model": BEDROCK_MODEL_ID,
         "openai_model": OPENAI_MODEL if OPENAI_API_KEY else None,
         "openai_fallback_enabled": openai_fallback_enabled(),
+        "openai_primary_enabled": openai_primary_enabled(),
     }
 
 
@@ -316,7 +413,11 @@ async def chat(request: ChatRequest):
         conversation = load_conversation(session_id)
 
         llm_result = call_llm(conversation, request.message)
-        assistant_response, suggested_questions = extract_suggested_questions(llm_result.text)
+        if llm_result.suggested_questions is not None:
+            assistant_response = llm_result.text
+            suggested_questions = llm_result.suggested_questions
+        else:
+            assistant_response, suggested_questions = extract_suggested_questions(llm_result.text)
 
         conversation.append(
             {"role": "user", "content": request.message, "timestamp": datetime.now().isoformat()}
